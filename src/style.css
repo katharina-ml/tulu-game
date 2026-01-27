@@ -1,0 +1,56 @@
+@font-face {
+  font-family: 'PPMori';
+  src: url('/fonts/PPMori-Regular.otf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* optional: global als Default nutzen */
+:root {
+  font-family: 'PPMori', system-ui, sans-serif;
+}
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #ffffff 0, #ffffff 55%);
+}
+
+#app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+canvas#game-canvas {
+  /* Fixe sichtbare Größe im Layout: 700 x 500 px */
+  width: 700px;
+  height: 500px;
+  max-width: 100%;
+  max-height: 100%;
+  /* Weiches Rendering (kein Retro-Pixel-Look) */
+  image-rendering: auto;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px #C9E3FF,
+    0 24px 60px #C9E3FF;
+  background-color: #ffffff;
+}
+
