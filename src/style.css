@@ -286,3 +286,24 @@ button {
   line-height: 1;
   padding-top: 16px;
 }
+
+#mobile-warning {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+  font-family: 'PPMori', system-ui, sans-serif;
+  font-size: 16px;
+  z-index: 9999;
+  text-align: center;
+  padding: 0 24px;
+}
+
+@media (max-width: 768px) {
+  #mobile-warning {
+    display: flex;
+  }
+}
