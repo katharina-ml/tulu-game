@@ -231,13 +231,13 @@ function pickItemType(state: GameState) {
   const bomb = ITEM_TYPES.find((t) => t.id === 'bomb' && t.isHazard);
   let bombChance = 0;
   const t = state.elapsedTime;
-  const bombCooldown = 1.5; // seconds
+  const bombCooldown = 1.2; // seconds
 
-  if (bomb && t >= 10) {
-    // Smooth ramp from ~1% at 10s up to 6% over 60 seconds.
-    const ramp = Math.min(1, (t - 10) / 60);
-    bombChance = 0.01 + ramp * (0.06 - 0.01);
-    bombChance = Math.min(0.0, Math.max(0, bombChance));
+  if (bomb && t >= 5) {
+    // Smooth ramp from ~3% at 5s up to 8% over 45 seconds.
+    const ramp = Math.min(1, (t - 5) / 45);
+    bombChance = 0.03 + ramp * (0.08 - 0.03);
+    bombChance = Math.min(0.08, Math.max(0, bombChance));
 
     // Enforce cooldown between bomb spawns.
     if (t - state.lastBombTime < bombCooldown) {
