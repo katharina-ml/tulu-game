@@ -1,9 +1,9 @@
 import { GAME_CONFIG, ITEM_TYPES, CHARACTERS, getDifficulty } from './config.ts';
-import type { GameState } from './entities';
+import type { GameState, GameScreen } from './entities';
 import { createPlayer, createFallingItem, aabbIntersect } from './entities';
 import type { InputState } from './input';
 import { createInputState, attachInputListeners } from './input';
-import { render, getCharacterSlots } from './renderer';
+import { render } from './renderer';
 
 interface GameRuntime {
   canvas: HTMLCanvasElement;
@@ -16,7 +16,7 @@ interface GameRuntime {
   spawnRateDebug: number;
 }
 
-export function startGame(canvas: HTMLCanvasElement): void {
+export function startGame(canvas: HTMLCanvasElement, uiRoot: HTMLElement): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     console.error('Could not get 2D context');
@@ -40,7 +40,13 @@ export function startGame(canvas: HTMLCanvasElement): void {
     spawnRateDebug: 0,
   };
 
-  setupMouseForCharacterSelect(runtime);
+  const uiController = initUI(uiRoot, {
+    onStart: () => setScreen(runtime, 'characterSelect'),
+    onSelectCharacter: (index) => selectCharacter(runtime.state, index),
+    onStartGame: () => beginPlay(runtime.state),
+    onRestart: () => beginPlay(runtime.state),
+    onBackToCharacterSelect: () => setScreen(runtime, 'characterSelect'),
+  });
 
   const loop = (time: number) => {
     if (!runtime.running) return;
@@ -48,6 +54,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
     runtime.lastTime = time;
 
     update(runtime, dt);
+    uiController.update(runtime.state);
     render(runtime.ctx, runtime.state);
 
     requestAnimationFrame(loop);
@@ -58,7 +65,7 @@ export function startGame(canvas: HTMLCanvasElement): void {
 
 function createInitialState(): GameState {
   return {
-    type: 'character-select',
+    screen: 'start',
     player: null,
     selectedCharacterIndex: 0,
     score: 0,
@@ -66,20 +73,24 @@ function createInitialState(): GameState {
     elapsedTime: 0,
     spawnAccumulator: 0,
     items: [],
+    missEffects: [],
   };
 }
 
 function update(runtime: GameRuntime, dt: number): void {
   const { state, input } = runtime;
 
-  switch (state.type) {
-    case 'character-select':
+  switch (state.screen) {
+    case 'start':
+      // Start screen is driven entirely by HTML; nothing to update here yet.
+      break;
+    case 'characterSelect':
       updateCharacterSelect(state, input, dt);
       break;
     case 'playing':
       updatePlaying(runtime, dt);
       break;
-    case 'game-over':
+    case 'gameOver':
       updateGameOver(state, input);
       break;
   }
@@ -104,12 +115,14 @@ function updateCharacterSelect(state: GameState, input: InputState, _dt: number)
 function beginPlay(state: GameState): void {
   const character = CHARACTERS[state.selectedCharacterIndex];
   state.player = createPlayer(character, GAME_CONFIG.width, GAME_CONFIG.height);
-  state.type = 'playing';
+  state.screen = 'playing';
   state.score = 0;
   state.lives = GAME_CONFIG.initialLives;
   state.elapsedTime = 0;
   state.spawnAccumulator = 0;
   state.items = [];
+  // Clear any leftover visual effects from the previous round.
+  state.missEffects = [];
 }
 
 function updatePlaying(runtime: GameRuntime, dt: number): void {
@@ -123,12 +136,10 @@ function updatePlaying(runtime: GameRuntime, dt: number): void {
   player.x += dir * player.speed * dt;
   player.x = Math.max(0, Math.min(GAME_CONFIG.width - player.width, player.x));
 
-  // Time & difficulty
   state.elapsedTime += dt;
   const diff = getDifficulty(state.elapsedTime);
   runtime.spawnRateDebug = diff.spawnRate;
 
-  // Spawning
   const spawnRate = diff.spawnRate;
   const spawnInterval = spawnRate > 0 ? 1 / spawnRate : Infinity;
   state.spawnAccumulator += dt;
@@ -140,24 +151,42 @@ function updatePlaying(runtime: GameRuntime, dt: number): void {
     state.items.push(item);
   }
 
-  // Update items
   const groundY = GAME_CONFIG.height - 10;
   const remaining: typeof state.items = [];
 
   for (const item of state.items) {
     item.y += item.vy * dt;
 
+    // Collision with player.
     if (aabbIntersect(player, item)) {
-      state.score += item.type.scoreValue;
-      // TODO: optional pickup sound here later.
-      continue;
+      if (item.type.isHazard) {
+        // Catching a bomb ends the game immediately.
+        state.lives = 0;
+        state.screen = 'gameOver';
+        break;
+      } else {
+        state.score += item.type.scoreValue;
+        // TODO: optional pickup sound here later.
+        continue;
+      }
     }
 
+    // Item reached the ground.
     if (item.y + item.height >= groundY) {
-      state.lives -= 1;
-      if (state.lives <= 0) {
-        state.type = 'game-over';
-        break;
+      if (!item.type.isHazard) {
+        // Only normal items cost a life when missed.
+        state.lives -= 1;
+        state.missEffects.push({
+          x: item.x + item.width / 2,
+          y: groundY - 5,
+          radius: Math.max(item.width, item.height) * 0.6,
+          timer: 0.3,
+          maxTimer: 0.3,
+        });
+        if (state.lives <= 0) {
+          state.screen = 'gameOver';
+          break;
+        }
       }
       continue;
     }
@@ -166,22 +195,44 @@ function updatePlaying(runtime: GameRuntime, dt: number): void {
   }
 
   state.items = remaining;
+  // Update and expire miss effects.
+  state.missEffects = state.missEffects
+    .map((fx) => ({ ...fx, timer: fx.timer - dt }))
+    .filter((fx) => fx.timer > 0);
 }
 
 function pickItemType(state: GameState) {
-  // Wähle das Item passend zum gerade aktiven Charakter.
   const idx = state.selectedCharacterIndex;
-  if (idx === 0) {
-    return ITEM_TYPES[0]; // Player A → Item A
+  // Base/rare items per character:
+  // Player A → base: itemA, rare: itemE
+  // Player B → base: itemB, rare: itemF
+  // Player C → base: itemC, rare: itemD
+  let baseId = 'itemA';
+  let rareId: string | null = 'itemE';
+  if (idx === 1) {
+    baseId = 'itemB';
+    rareId = 'itemF';
+  } else if (idx === 2) {
+    baseId = 'itemC';
+    rareId = 'itemD';
   }
-  if (idx === 1 && ITEM_TYPES.length > 1) {
-    return ITEM_TYPES[1]; // Player B → Item B
+
+  const base = ITEM_TYPES.find((t) => t.id === baseId) ?? ITEM_TYPES[0];
+  const rare = rareId ? ITEM_TYPES.find((t) => t.id === rareId) ?? null : null;
+
+  // With a small chance, spawn a bomb instead of any item.
+  const bomb = ITEM_TYPES.find((t) => t.id === 'bomb' && t.isHazard);
+  const bombChance = 0.1; // 10% bombs
+  const rareChance = 0.2; // 20% rare item for that character
+
+  const roll = Math.random();
+  if (bomb && roll < bombChance) {
+    return bomb;
   }
-  if (idx === 2 && ITEM_TYPES.length > 2) {
-    return ITEM_TYPES[2]; // Player C → Item C
+  if (rare && roll < bombChance + rareChance) {
+    return rare;
   }
-  // Fallback, falls Konfiguration geändert wird.
-  return ITEM_TYPES[0];
+  return base;
 }
 
 function updateGameOver(state: GameState, input: InputState): void {
@@ -196,32 +247,167 @@ function updateGameOver(state: GameState, input: InputState): void {
   }
 }
 
-function setupMouseForCharacterSelect(runtime: GameRuntime): void {
-  const { canvas, state } = runtime;
+type UiActions = {
+  onStart: () => void;
+  onSelectCharacter: (index: number) => void;
+  onStartGame: () => void;
+  onRestart: () => void;
+  onBackToCharacterSelect: () => void;
+};
 
-  const handleClick = (event: MouseEvent) => {
-    if (state.type !== 'character-select') {
-      return;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = GAME_CONFIG.width / rect.width;
-    const scaleY = GAME_CONFIG.height / rect.height;
-
-    const x = (event.clientX - rect.left) * scaleX;
-    const y = (event.clientY - rect.top) * scaleY;
-
-    const slots = getCharacterSlots(GAME_CONFIG.width, GAME_CONFIG.height);
-    for (let i = 0; i < slots.length; i++) {
-      const s = slots[i];
-      if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
-        state.selectedCharacterIndex = i;
-        beginPlay(state);
-        break;
-      }
-    }
-  };
-
-  canvas.addEventListener('click', handleClick);
+interface UiController {
+  update: (state: GameState) => void;
 }
 
+function initUI(root: HTMLElement, actions: UiActions): UiController {
+  const container = root.closest('#game-container') ?? root;
+
+  const uiLayer = document.createElement('div');
+  uiLayer.id = 'ui-layer';
+  container.appendChild(uiLayer);
+
+  uiLayer.innerHTML = `
+    <div class="screen start-screen">
+      <div class="panel">
+        <img src="/assets/Logo/logo.svg" alt="studio tülü logo" class="logo" />
+        <div class="button-wrapper"">
+        <button type="button" class="btn circle" data-action="start" aria-label="Choose your character">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="12" viewBox="0 0 14 12" fill="none">
+            <path d="M13.904 6.736L8.912 11.744L7.568 10.624L11.456 6.736H0V4.992H11.472L7.584 1.12L8.912 0L13.904 4.992V6.736Z" fill="white"/>
+          </svg>
+        </button>
+        <button type="button" class="button-text" data-action="start" aria-label="Choose your character">Choose your character</button>
+        </div>
+      </div>
+    </div>
+    <div class="screen character-select-screen">
+      <div class="panel">
+      <img src="/assets/Logo/logo.svg" alt="studio tülü logo" class="logo" />
+      <div class="panel-content">
+        <h2 class="title">Choose your character</h2>
+        <div class="character-grid"></div>
+        <div class="button-wrapper"">
+        <button type="button" class="btn circle" data-action="start-game" aria-label="Start game">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="12" viewBox="0 0 14 12" fill="none">
+            <path d="M13.904 6.736L8.912 11.744L7.568 10.624L11.456 6.736H0V4.992H11.472L7.584 1.12L8.912 0L13.904 4.992V6.736Z" fill="white"/>
+          </svg>
+        </button>
+        <button type="button" class="button-text" data-action="start-game" aria-label="Start game">Start game</button>
+        </div>
+        </div>
+        <p class="instructions">Press ←/→ or A/D to move <br> Enter/Click to start</p>
+      </div>
+    </div>
+    <div class="screen gameover-screen">
+      <div class="panel">
+      <img src="/assets/Logo/logo.svg" alt="studio tülü logo" class="logo" />
+      <div class="panel-content">
+        <h2 class="title red">Game Over</h2>
+        <p class="final-score">Score: <span data-score>0</span></p>
+        </div>
+        <div class="button-row">
+            <div class="button-wrapper">
+            <button type="button" class="btn circle" data-action="restart" aria-label="Restart">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="12" viewBox="0 0 14 12" fill="none">
+                <path d="M13.904 6.736L8.912 11.744L7.568 10.624L11.456 6.736H0V4.992H11.472L7.584 1.12L8.912 0L13.904 4.992V6.736Z" fill="white"/>
+              </svg>
+            </button>
+            <button type="button" class="button-text" data-action="restart" aria-label="Restart">Restart</button>
+            </div>
+            <div class="button-wrapper">
+            <button type="button" class="btn circle" data-action="back" aria-label="Character Select">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="12" viewBox="0 0 14 12" fill="none">
+                <path d="M13.904 6.736L8.912 11.744L7.568 10.624L11.456 6.736H0V4.992H11.472L7.584 1.12L8.912 0L13.904 4.992V6.736Z" fill="white"/>
+              </svg>
+            </button>
+            <button type="button" class="button-text" data-action="back" aria-label="Character Select">Character Select</button>
+            </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const startScreen = uiLayer.querySelector<HTMLDivElement>('.start-screen')!;
+  const charScreen = uiLayer.querySelector<HTMLDivElement>('.character-select-screen')!;
+  const gameOverScreen = uiLayer.querySelector<HTMLDivElement>('.gameover-screen')!;
+  const scoreSpan = uiLayer.querySelector<HTMLSpanElement>('[data-score]')!;
+  const characterGrid = uiLayer.querySelector<HTMLDivElement>('.character-grid')!;
+
+  // Build character cards.
+  CHARACTERS.forEach((char, index) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'character-card';
+    card.dataset.index = String(index);
+    const img = document.createElement('img');
+    img.src = char.spritePath ?? '';
+    img.alt = char.name;
+    img.className = 'character-avatar';
+    const label = document.createElement('span');
+    label.className = 'character-name';
+    label.textContent = char.name;
+    card.appendChild(img);
+    card.appendChild(label);
+    characterGrid.appendChild(card);
+  });
+
+  // Button actions.
+  uiLayer.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    if (target.matches('[data-action="start"]')) {
+      actions.onStart();
+      return;
+    }
+    if (target.matches('[data-action="start-game"]')) {
+      actions.onStartGame();
+      return;
+    }
+    if (target.matches('[data-action="restart"]')) {
+      actions.onRestart();
+      return;
+    }
+    if (target.matches('[data-action="back"]')) {
+      actions.onBackToCharacterSelect();
+      return;
+    }
+    const card = target.closest<HTMLButtonElement>('.character-card');
+    if (card && card.dataset.index) {
+      const index = Number(card.dataset.index);
+      actions.onSelectCharacter(index);
+    }
+  });
+
+  const controller: UiController = {
+    update(state: GameState) {
+      // Update score on game over.
+      scoreSpan.textContent = String(state.score);
+
+      const screen = state.screen;
+      startScreen.style.display = screen === 'start' ? 'flex' : 'none';
+      charScreen.style.display = screen === 'characterSelect' ? 'flex' : 'none';
+      gameOverScreen.style.display = screen === 'gameOver' ? 'flex' : 'none';
+
+      // Pointer events: enabled when UI is visible, disabled during gameplay.
+      const anyUiVisible = screen === 'start' || screen === 'characterSelect' || screen === 'gameOver';
+      uiLayer.style.pointerEvents = anyUiVisible ? 'auto' : 'none';
+    },
+  };
+
+  return controller;
+}
+
+function setScreen(runtime: GameRuntime | GameState, screen: GameScreen): void {
+  if ('state' in runtime) {
+    runtime.state.screen = screen;
+  } else {
+    runtime.screen = screen;
+  }
+}
+
+function selectCharacter(state: GameState, index: number): void {
+  if (index >= 0 && index < CHARACTERS.length) {
+    state.selectedCharacterIndex = index;
+  }
+}
