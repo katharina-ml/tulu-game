@@ -8,7 +8,7 @@ export interface Rect {
   height: number;
 }
 
-export type GameStateType = 'character-select' | 'playing' | 'game-over';
+export type GameScreen = 'start' | 'characterSelect' | 'playing' | 'gameOver';
 
 export interface Player extends Rect {
   speed: number;
@@ -21,8 +21,16 @@ export interface FallingItem extends Rect {
   type: ItemTypeConfig;
 }
 
+export interface MissEffect {
+  x: number;
+  y: number;
+  radius: number;
+  timer: number;
+  maxTimer: number;
+}
+
 export interface GameState {
-  type: GameStateType;
+  screen: GameScreen;
   player: Player | null;
   selectedCharacterIndex: number;
   score: number;
@@ -30,12 +38,13 @@ export interface GameState {
   elapsedTime: number;
   spawnAccumulator: number;
   items: FallingItem[];
+  missEffects: MissEffect[];
 }
 
 export function createPlayer(character: CharacterConfig, canvasWidth: number, canvasHeight: number): Player {
   // Size of the player character in world units.
-  const width = 70;
-  const height = 120;
+  const width = 50;
+  const height = 100;
   return {
     x: canvasWidth / 2 - width / 2,
     y: canvasHeight - height - 4,

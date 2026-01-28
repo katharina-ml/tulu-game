@@ -39,6 +39,10 @@ body {
   height: 100%;
 }
 
+#game-container {
+  position: relative;
+}
+
 canvas#game-canvas {
   /* Fixe sichtbare Größe im Layout: 700 x 500 px */
   width: 700px;
@@ -54,3 +58,222 @@ canvas#game-canvas {
   background-color: #ffffff;
 }
 
+#ui-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 100%;
+  min-height: 100%;
+  padding: 24px 24px;
+  border: 2px solid #D7EAFF;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px #D7EAFF;
+  text-align: center;
+}
+
+.panel-content {
+  flex: 1;
+  flex-direction: column;
+  display: flex;
+  align-items: center;      /* vertikal zentrieren */
+  justify-content: center;  /* horizontal zentrieren */
+}
+
+.title {
+  margin: 0 0 8px;
+  font-family: 'PPMori', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.title.red {
+  color: #FF0000;
+  font-size:56px;
+}
+
+button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.btn {
+  font-family: 'PPMori', system-ui, sans-serif;
+  border-radius: 999px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background-color: #ffffff;
+  color: #000000;
+  height: 32px;
+}
+
+.btn.circle {
+  color: #ffffff;
+  border-radius: 54px;
+  background: #000;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-items: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  z-index: 12;
+}
+
+.btn.secondary {
+  background-color: #ffffff;
+  color: #333333;
+  border: 1px solid #c9e3ff;
+}
+
+.button-text {
+  color: #000000;
+  font-size: 16px;
+  font-family: 'PPMori', system-ui, sans-serif;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  margin: 0;
+  z-index: 12;
+  cursor: pointer;
+}
+
+.button-wrapper {
+  display: flex;
+  padding-right: 12px;
+  justify-content: flex-start;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 8px;
+  border-radius: 999px;
+  color: #000000;
+  text-decoration: none;
+  cursor: pointer;
+  width: fit-content;
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  transition: color 0.3s ease;
+  margin-top: 16px;
+}
+
+.button-wrapper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0;
+  background: #000000;
+  z-index: 0;
+  transition: width 0.4s ease;
+}
+
+.button-wrapper:hover::before {
+  width: 100%;
+}
+.button-wrapper .button-text {
+  position: relative;
+  z-index: 1;
+  transition: color 0.3s ease;
+}
+
+.button-wrapper:hover .button-text {
+  color: #ffffff;
+}
+
+.button-wrapper:active .button-text {
+  color: #ffffff;
+}
+
+.character-grid {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin: 16px 0 20px;
+}
+
+.character-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 24px;
+  border-radius: 12px;
+  border: 1px solid #c9e3ff;
+  background: #d7eaff;
+  cursor: pointer;
+}
+
+.character-card:hover {
+  border: 1px solid #FF825A;
+}
+
+.character-card:focus {
+  border: 1px solid #FF825A;
+}
+
+.character-card .character-avatar {
+  width: 60px;
+  height: auto;
+  display: block;
+}
+
+.character-card .character-name {
+  font-family: 'PPMori', system-ui, sans-serif;
+}
+
+.button-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.logo {
+  max-width: 220px;
+  margin-bottom: 16px;
+}
+
+.instructions {
+  font-family: 'PPMori', system-ui, sans-serif;
+  font-size: 12px;
+  color: #666666;
+  margin-top: auto;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.final-score {
+  font-family: 'PPMori', system-ui, sans-serif;
+  font-size: 16px;
+  color: #000000;
+  margin: 0;
+}

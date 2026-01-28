@@ -18,17 +18,28 @@ export interface ItemTypeConfig {
   width?: number;
   height?: number;
   baseFallSpeed: number;
+  isHazard?: boolean;
 }
 
-// Three item types – one for each character (A/B/C).
+// Item types: three base items (A/B/C), three rare items (D/E/F), plus a bomb hazard.
 export const ITEM_TYPES: ItemTypeConfig[] = [
   {
     id: 'itemA',
     spritePath: '/assets/items/itemA.png',
     scoreValue: 1,
     spawnWeight: 1,
-    width: 50,
-    height: 50,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 80,
+  },
+  {
+    id: 'itemD',
+    spritePath: '/assets/items/itemD.png',
+    // Rare partner item for Player C – double score.
+    scoreValue: 2,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
     baseFallSpeed: 80,
   },
   {
@@ -36,8 +47,18 @@ export const ITEM_TYPES: ItemTypeConfig[] = [
     spritePath: '/assets/items/itemB.png',
     scoreValue: 1,
     spawnWeight: 1,
-    width: 70,
-    height: 70,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 80,
+  },
+  {
+    id: 'itemF',
+    spritePath: '/assets/items/itemF.png',
+    // Rare partner item for Player B – double score.
+    scoreValue: 2,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
     baseFallSpeed: 80,
   },
   {
@@ -45,9 +66,29 @@ export const ITEM_TYPES: ItemTypeConfig[] = [
     spritePath: '/assets/items/itemC.png',
     scoreValue: 1,
     spawnWeight: 1,
-    width: 50,
-    height: 50,
+    width: 32,
+    height: 32,
     baseFallSpeed: 80,
+  },
+  {
+    id: 'itemE',
+    spritePath: '/assets/items/itemE.png',
+    // Rare partner item for Player A – double score.
+    scoreValue: 2,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 80,
+  },
+  {
+    id: 'bomb',
+    spritePath: '/assets/items/bomb.png',
+    scoreValue: 0,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 85,
+    isHazard: true,
   },
 ];
 
