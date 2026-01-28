@@ -9,6 +9,12 @@ export const GAME_CONFIG = {
   initialLives: 3,
 };
 
+// Upper bound for how many items can spawn during a single frame.
+export const MAX_SPAWNS_PER_FRAME = 2;
+
+// Base probability for rare items when a non-bomb spawns.
+export const RARE_ITEM_CHANCE = 0.15;
+
 // Definition of all falling item types. You can freely change/add items here.
 export interface ItemTypeConfig {
   id: string;
