@@ -39,6 +39,10 @@ export interface GameState {
   spawnAccumulator: number;
   items: FallingItem[];
   missEffects: MissEffect[];
+  // Time of the last bomb spawn in seconds (elapsedTime). Used for cooldown.
+  lastBombTime: number;
+  // X-position of the last spawned item, used to limit huge horizontal jumps.
+  lastSpawnX: number;
 }
 
 export function createPlayer(character: CharacterConfig, canvasWidth: number, canvasHeight: number): Player {
@@ -50,16 +54,33 @@ export function createPlayer(character: CharacterConfig, canvasWidth: number, ca
     y: canvasHeight - height - 4,
     width,
     height,
-    speed: 250,
+    speed: 300,
     color: character.color,
     character,
   };
 }
 
-export function createFallingItem(type: ItemTypeConfig, canvasWidth: number): FallingItem {
+export function createFallingItem(type: ItemTypeConfig, canvasWidth: number, lastSpawnX?: number): FallingItem {
   const width = type.width ?? 12;
   const height = type.height ?? 12;
-  const x = Math.random() * (canvasWidth - width);
+
+  // Keep a small margin from the absolute edges.
+  const margin = 12;
+  const minX = margin;
+  const maxX = canvasWidth - width - margin;
+
+  let x = Math.random() * (maxX - minX) + minX;
+
+  if (lastSpawnX != null && Number.isFinite(lastSpawnX)) {
+    // Limit how far a new spawn can jump horizontally from the previous one.
+    const maxStep = canvasWidth * 0.35; // 35% of the width per spawn.
+    const delta = x - lastSpawnX;
+    if (Math.abs(delta) > maxStep) {
+      x = lastSpawnX + Math.sign(delta) * maxStep;
+      x = Math.max(minX, Math.min(maxX, x));
+    }
+  }
+
   return {
     x,
     y: -height,

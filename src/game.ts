@@ -1,4 +1,4 @@
-import { GAME_CONFIG, ITEM_TYPES, CHARACTERS, getDifficulty } from './config.ts';
+import { GAME_CONFIG, ITEM_TYPES, CHARACTERS, getDifficulty, MAX_SPAWNS_PER_FRAME, RARE_ITEM_CHANCE } from './config.ts';
 import type { GameState, GameScreen } from './entities';
 import { createPlayer, createFallingItem, aabbIntersect } from './entities';
 import type { InputState } from './input';
@@ -74,6 +74,8 @@ function createInitialState(): GameState {
     spawnAccumulator: 0,
     items: [],
     missEffects: [],
+    lastBombTime: -Infinity,
+    lastSpawnX: GAME_CONFIG.width / 2,
   };
 }
 
@@ -123,6 +125,8 @@ function beginPlay(state: GameState): void {
   state.items = [];
   // Clear any leftover visual effects from the previous round.
   state.missEffects = [];
+  state.lastBombTime = -Infinity;
+  state.lastSpawnX = GAME_CONFIG.width / 2;
 }
 
 function updatePlaying(runtime: GameRuntime, dt: number): void {
@@ -143,12 +147,15 @@ function updatePlaying(runtime: GameRuntime, dt: number): void {
   const spawnRate = diff.spawnRate;
   const spawnInterval = spawnRate > 0 ? 1 / spawnRate : Infinity;
   state.spawnAccumulator += dt;
-  while (state.spawnAccumulator >= spawnInterval) {
+  let spawnsThisFrame = 0;
+  while (state.spawnAccumulator >= spawnInterval && spawnsThisFrame < MAX_SPAWNS_PER_FRAME) {
     state.spawnAccumulator -= spawnInterval;
     const type = pickItemType(state);
-    const item = createFallingItem(type, GAME_CONFIG.width);
+    const item = createFallingItem(type, GAME_CONFIG.width, state.lastSpawnX);
     item.vy *= diff.speedMultiplier;
     state.items.push(item);
+    spawnsThisFrame += 1;
+    state.lastSpawnX = item.x;
   }
 
   const groundY = GAME_CONFIG.height - 10;
@@ -220,18 +227,34 @@ function pickItemType(state: GameState) {
   const base = ITEM_TYPES.find((t) => t.id === baseId) ?? ITEM_TYPES[0];
   const rare = rareId ? ITEM_TYPES.find((t) => t.id === rareId) ?? null : null;
 
-  // With a small chance, spawn a bomb instead of any item.
+  // Decide bomb first, with time-based chance and cooldown.
   const bomb = ITEM_TYPES.find((t) => t.id === 'bomb' && t.isHazard);
-  const bombChance = 0.1; // 10% bombs
-  const rareChance = 0.2; // 20% rare item for that character
+  let bombChance = 0;
+  const t = state.elapsedTime;
+  const bombCooldown = 1.5; // seconds
 
-  const roll = Math.random();
-  if (bomb && roll < bombChance) {
-    return bomb;
+  if (bomb && t >= 10) {
+    // Smooth ramp from ~1% at 10s up to 4% over 60 seconds.
+    const ramp = Math.min(1, (t - 10) / 60);
+    bombChance = 0.01 + ramp * (0.04 - 0.01);
+    bombChance = Math.min(0.04, Math.max(0, bombChance));
+
+    // Enforce cooldown between bomb spawns.
+    if (t - state.lastBombTime < bombCooldown) {
+      bombChance = 0;
+    }
   }
-  if (rare && roll < bombChance + rareChance) {
+
+  if (bombChance > 0 && Math.random() < bombChance) {
+    state.lastBombTime = t;
+    return bomb!;
+  }
+
+  // Independent rare item roll.
+  if (rare && Math.random() < RARE_ITEM_CHANCE) {
     return rare;
   }
+
   return base;
 }
 
@@ -269,6 +292,7 @@ function initUI(root: HTMLElement, actions: UiActions): UiController {
   uiLayer.innerHTML = `
     <div class="screen start-screen">
       <div class="panel">
+      <div class="panel-content">
         <img src="/assets/Logo/logo.svg" alt="studio tülü logo" class="logo" />
         <div class="button-wrapper"">
         <button type="button" class="btn circle" data-action="start" aria-label="Choose your character">
@@ -278,6 +302,8 @@ function initUI(root: HTMLElement, actions: UiActions): UiController {
         </button>
         <button type="button" class="button-text" data-action="start" aria-label="Choose your character">Choose your character</button>
         </div>
+        </div>
+        <a href="https://www.studiotulu.com" target="_blank" class="link">www.studiotulu.com</a>
       </div>
     </div>
     <div class="screen character-select-screen">
@@ -295,7 +321,8 @@ function initUI(root: HTMLElement, actions: UiActions): UiController {
         <button type="button" class="button-text" data-action="start-game" aria-label="Start game">Start game</button>
         </div>
         </div>
-        <p class="instructions">Press ←/→ or A/D to move <br> Enter/Click to start</p>
+        <p class="instructions">Press ←/→ or A/D to move・Enter/Click to start</p>
+        <a href="https://www.studiotulu.com" target="_blank" class="link">www.studiotulu.com</a>
       </div>
     </div>
     <div class="screen gameover-screen">
@@ -322,6 +349,7 @@ function initUI(root: HTMLElement, actions: UiActions): UiController {
             </button>
             <button type="button" class="button-text" data-action="back" aria-label="Character Select">Character Select</button>
             </div>
+            <a href="https://www.studiotulu.com" target="_blank" class="link">www.studiotulu.com</a>
         </div>
       </div>
     </div>
