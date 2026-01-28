@@ -234,10 +234,10 @@ function pickItemType(state: GameState) {
   const bombCooldown = 1.2; // seconds
 
   if (bomb && t >= 5) {
-    // Smooth ramp from ~3% at 5s up to 8% over 45 seconds.
+    // Smooth ramp from ~3% at 5s up to 9% over 45 seconds.
     const ramp = Math.min(1, (t - 5) / 45);
-    bombChance = 0.03 + ramp * (0.08 - 0.03);
-    bombChance = Math.min(0.08, Math.max(0, bombChance));
+    bombChance = 0.03 + ramp * (0.09 - 0.03);
+    bombChance = Math.min(0.09, Math.max(0, bombChance));
 
     // Enforce cooldown between bomb spawns.
     if (t - state.lastBombTime < bombCooldown) {
