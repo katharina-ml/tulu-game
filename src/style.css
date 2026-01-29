@@ -240,8 +240,8 @@ button {
 }
 
 .character-card .character-avatar {
-  width: 60px;
-  height: auto;
+  width: auto;
+  height: 110px;
   display: block;
 }
 

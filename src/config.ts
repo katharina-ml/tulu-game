@@ -27,7 +27,7 @@ export interface ItemTypeConfig {
   isHazard?: boolean;
 }
 
-// Item types: three base items (A/B/C), three rare items (D/E/F), plus a bomb hazard.
+// Item types: base items (A/B/C/G), rare items (D/E/F/H), plus a bomb hazard.
 export const ITEM_TYPES: ItemTypeConfig[] = [
   {
     id: 'itemA',
@@ -80,6 +80,26 @@ export const ITEM_TYPES: ItemTypeConfig[] = [
     id: 'itemE',
     spritePath: '/assets/items/itemE.png',
     // Rare partner item for Player A – double score.
+    scoreValue: 2,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 80,
+  },
+  {
+    id: 'itemG',
+    spritePath: '/assets/items/itemG.png',
+    // Base item for Player D.
+    scoreValue: 1,
+    spawnWeight: 1,
+    width: 32,
+    height: 32,
+    baseFallSpeed: 80,
+  },
+  {
+    id: 'itemH',
+    spritePath: '/assets/items/itemH.png',
+    // Rare partner item for Player D – double score.
     scoreValue: 2,
     spawnWeight: 1,
     width: 32,
@@ -163,5 +183,11 @@ export const CHARACTERS: CharacterConfig[] = [
     name: 'Anne',
     spritePath: '/assets/players/playerC.png',
     color: '#f687b3',
+  },
+  {
+    id: 'playerD',
+    name: 'Hannah',
+    spritePath: '/assets/players/playerD.png',
+    color: '#9f7aea',
   },
 ];
