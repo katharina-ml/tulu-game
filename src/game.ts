@@ -214,6 +214,7 @@ function pickItemType(state: GameState) {
   // Player A → base: itemA, rare: itemE
   // Player B → base: itemB, rare: itemF
   // Player C → base: itemC, rare: itemD
+  // Player D → base: itemG, rare: itemH
   let baseId = 'itemA';
   let rareId: string | null = 'itemE';
   if (idx === 1) {
@@ -222,6 +223,9 @@ function pickItemType(state: GameState) {
   } else if (idx === 2) {
     baseId = 'itemC';
     rareId = 'itemD';
+  } else if (idx === 3) {
+    baseId = 'itemG';
+    rareId = 'itemH';
   }
 
   const base = ITEM_TYPES.find((t) => t.id === baseId) ?? ITEM_TYPES[0];
@@ -295,7 +299,7 @@ function initUI(root: HTMLElement, actions: UiActions): UiController {
       <div class="panel-content">
         <img src="/assets/Logo/logo.svg" alt="studio tülü logo" class="logo" />
         <div class="button-wrapper"">
-        <button type="button" class="btn circle" data-action="start" aria-label="Choose your character">
+        <button type="button" class="btn circle" data-action="start" aria-label="Choose your fighter">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="12" viewBox="0 0 14 12" fill="none">
             <path d="M13.904 6.736L8.912 11.744L7.568 10.624L11.456 6.736H0V4.992H11.472L7.584 1.12L8.912 0L13.904 4.992V6.736Z" fill="white"/>
           </svg>
